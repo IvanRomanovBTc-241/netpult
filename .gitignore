@@ -1,0 +1,21 @@
+# сборка и артефакты
+build/
+dist/
+*.apk
+*.aab
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# логи диагностики
+*.log
+build-log.txt
+gradle-debug.log
+gradle-daemon.log
+build-clean.log
+
+# системный мусор
+.DS_Store
+Thumbs.db

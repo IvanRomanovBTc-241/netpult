@@ -1,0 +1,17 @@
+[project]
+name = "netpult"
+version = "0.1.0"
+description = "NetPult — пульт управления домашней сетью"
+requires-python = ">=3.10"
+dependencies = [
+    "flet==1.1.2",
+]
+
+[tool.flet]
+org = "ru.netpult"
+product = "NetPult"
+company = "NetPult"
+copyright = "NetPult"
+
+[tool.flet.app]
+path = "src"
