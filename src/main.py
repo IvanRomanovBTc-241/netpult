@@ -17,6 +17,7 @@ import flet as ft
 
 from netpult.adapters import build_adapter, manual_devices
 from netpult.keenetic import Device, KeeneticError
+from netpult.presets import BY_KEY, PRESETS, note_for
 from netpult.scheduler import Scheduler
 from netpult.storage import Store, describe, parse_hhmm, rule_key
 
@@ -279,10 +280,16 @@ async def main(page: ft.Page) -> None:
         name = ft.TextField(label="Название (Дом, Мама, дача…)", value=data.get("name", ""))
         host = ft.TextField(label="Адрес роутера", value=data.get("host", "192.168.1.1"))
         protocol = ft.Dropdown(
-            label="Протокол",
+            label="Протокол (ставится автоматически)",
             value=str(data.get("protocol", "keenetic")),
             options=[ft.dropdown.Option(key, label) for key, label in PROTOCOLS.items()],
         )
+        preset_dd = ft.Dropdown(
+            label="Модель роутера",
+            value=str(data.get("preset", "keenetic")),
+            options=[ft.dropdown.Option(p["key"], p["title"]) for p in PRESETS],
+        )
+        preset_note = ft.Text(note_for(str(data.get("preset", "keenetic"))), size=10, color=ft.Colors.BLUE_GREY_200)
         port = ft.TextField(
             label="Порт",
             value=str(data.get("port", 23)),
@@ -323,7 +330,21 @@ async def main(page: ft.Page) -> None:
             telnet_box.visible = protocol.value == "telnet"
             page.update()
 
+        def on_preset(_) -> None:
+            preset = BY_KEY.get(preset_dd.value or "")
+            if not preset:
+                return
+            protocol.value = preset["protocol"]
+            port.value = str(preset["port"])
+            list_cmd.value = preset["list_cmd"]
+            block_cmd.value = preset["block_cmd"]
+            unblock_cmd.value = preset["unblock_cmd"]
+            preset_note.value = preset["note"]
+            telnet_box.visible = preset["protocol"] == "telnet"
+            page.update()
+
         protocol.on_select = toggle_protocol
+        preset_dd.on_select = on_preset
         telnet_box.visible = protocol.value == "telnet"
 
         async def save(_) -> None:
@@ -337,6 +358,7 @@ async def main(page: ft.Page) -> None:
                 "name": (name.value or "").strip() or host_value,
                 "host": host_value,
                 "protocol": protocol.value or "keenetic",
+                "preset": preset_dd.value or "manual",
                 "port": int(port.value or 23) if str(port.value or "23").isdigit() else 23,
                 "login": (login.value or "").strip(),
                 "password": password.value or "",
@@ -366,6 +388,8 @@ async def main(page: ft.Page) -> None:
                     [
                         name,
                         host,
+                        preset_dd,
+                        preset_note,
                         protocol,
                         telnet_box,
                         login,

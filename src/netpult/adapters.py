@@ -104,13 +104,12 @@ class TelnetSession:
         self._sock = socket.create_connection((self.host, self.port), timeout=self.timeout)
         self._sock.settimeout(self.timeout)
         self._banner = self._read(1.5)
-        if self.login:
-            if re.search(r"login\s*:?", self._banner, re.IGNORECASE):
-                self._send(self.login)
-                self._read(1.5)
-            if re.search(r"password\s*:?", self._read(0.1) or self._banner, re.IGNORECASE):
+        if self.login and re.search(r"login\s*:?", self._banner, re.IGNORECASE):
+            self._send(self.login)
+            after_login = self._read(2.0)
+            if re.search(r"password\s*:?", after_login, re.IGNORECASE):
                 self._send(self.password)
-                self._read(2.0)
+                self._read(2.5)
         return self
 
     def __exit__(self, *exc) -> None:
@@ -139,18 +138,25 @@ class TelnetSession:
             deadline = time.time() + 0.35
         return _clean(buf)
 
-    def command(self, command: str, wait: float = 1.5) -> str:
+    def command(self, command: str, wait: float = 2.5) -> str:
         self._send(command)
         return self._read(wait)
 
 
 def _clean_name(line: str, mac: str, ip: str) -> str:
     """Пытаемся вытащить из строки осмысленное имя, а не служебные флаги."""
-    text = line.replace(mac, " ").replace(ip, " ") if ip else line.replace(mac, " ")
+    text = MAC_RE.sub(" ", line)
+    text = IP_RE.sub(" ", text)
     junk = {"0x1", "0x2", "0x0", "*", "br-lan", "br0", "eth0", "eth1", "wlan0", "wlan1", "lan", "wan", "dynamic"}
     parts = [p for p in re.split(r"[\s|;,]+", text) if p and p.lower() not in junk]
-    parts = [p for p in parts if not re.fullmatch(r"0x[0-9a-f]+", p, re.IGNORECASE)]
-    return " ".join(parts)[:40].strip()
+    parts = [
+        p for p in parts
+        if not re.fullmatch(r"0x[0-9a-f]+", p, re.IGNORECASE)
+        and not p.isdigit()
+        and not re.search(r"[0-9a-f]{2}[:-][0-9a-f]{2}", p, re.IGNORECASE)
+        and not p.startswith(":")
+    ]
+    return " ".join(parts)[:40].strip(" :-")
 
 
 def parse_devices(output: str) -> list[Device]:
